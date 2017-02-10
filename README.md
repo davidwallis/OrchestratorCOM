@@ -76,7 +76,6 @@ ExecuteSQLScript c:\Configurations.SQL
 Finally disconnect from the COM api.
 
 ```powershell
-write-host "`n`nDisconnecting from PLLWINDVSCO002`n"
 Disconnect-OrchestratorComInterface -verbose
 ```
 
