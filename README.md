@@ -47,7 +47,7 @@ import-module OrchestratorCOM
 
 Connect to the COM api
 ```powershell
-Connect-OrchestratorComInterface -Credential (Get-credential cig\!davidw)
+Connect-OrchestratorComInterface -Credential (Get-credential domain\user)
 ```
 
 Import Policy Folders, Global Settings Folders, Policies and Global Configuration
