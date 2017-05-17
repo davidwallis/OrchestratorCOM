@@ -1,8 +1,7 @@
-# 1.0.71.0 (10/02/2017) [DW]
- - Param fix
-
-# 1.0.69.0 (10/02/2017) [DW]
- - Publish to github
+# 1.0.173.0 (17/05/2017) [DW]
+ - Added working encryption and decryption functions
+ - Fixed issues with exporting in non utf8 format
+ - Sync GitHub with internal TFS Repo
 
 # 1.0.2 (05/01/2017) [DW]
  - Add Get-OrchestratorRunbooksInFolder

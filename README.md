@@ -9,6 +9,7 @@ Sources/References:
 * https://blogs.technet.microsoft.com/orchestrator/2012/05/29/ips-and-activities-and-how-those-are-represented-in-the-database/
 * https://blogs.technet.microsoft.com/orchestrator/2012/05/24/more-fun-with-com-importing-integration-packs-via-powershell/
 * https://scorch.codeplex.com/SourceControl/latest
+* https://social.technet.microsoft.com/wiki/contents/articles/14631.system-center-orchestrator-security.aspx
 
 Requires:
 
@@ -22,8 +23,8 @@ Warning:
 
 I am not currently bothering to change the GUID's - why bother if exporting from one server to another (assuming your arent sharing a DB instance!)
 
-Exporting of global configurations doesnt seem to currently work as I expected so I extract the configurations from the database and generate a sql insert statement, bear in mind that passwords will not transfer across due to the use of AES encryption keys in orchestrator,
-I suspect you could back up and restore the Symetric and Asysmetric keys that are used, these can be located by looking at the relevant stored procedures in the orchestrator database or by running:
+~~Exporting of global configurations doesnt seem to currently work as I expected so I extract the configurations from the database and generate a sql insert statement, bear in mind that passwords will not transfer across due to the use of AES encryption keys in orchestrator,
+I suspect you could back up and restore the Symetric and Asysmetric keys that are used, these can be located by looking at the relevant stored procedures in the orchestrator database or by running:~~
 
 ```sql
 SELECT * FROM sys.asymmetric_keys WHERE name = 'ORCHESTRATOR_ASYM_KEY'
@@ -63,7 +64,7 @@ Import-OrchestratorGlobalConfiguration -File $oisFile
 
 As a one of task the global configurations can be exported from the source server by running the following command on the SOURCE server
 ```powershell
-ExportOrchestratorGlobalConfigurationToSQLScript | out-file c:\Configurations.SQL
+ExportOrchestratorGlobalConfigurationToSQLScript | out-file c:\Configurations.SQL -Encoding UTF8
 ```
 
 These can then be imported using the following command on the Destination Server, you would then need to ammend any credentials due to encryption errors, if anyone can shed any light on how to deal with this I'm all ears as it must be possible using the Salt available within the OIS file.
@@ -76,7 +77,7 @@ ExecuteSQLScript c:\Configurations.SQL
 Finally disconnect from the COM api.
 
 ```powershell
-Disconnect-OrchestratorComInterface -verbose
+Disconnect-OrchestratorComInterface
 ```
 
 I am currently testing this so feel free to help add functionality if requrired or suggest changes as I know it's not perfect as yet.
