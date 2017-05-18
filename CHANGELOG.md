@@ -1,3 +1,7 @@
+# 1.0.275.0 (18/05/2017) [DW]
+ - Add functions for getting logs
+ - Add format file
+
 # 1.0.173.0 (17/05/2017) [DW]
  - Added working encryption and decryption functions
  - Fixed issues with exporting in non utf8 format

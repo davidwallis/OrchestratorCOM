@@ -12,7 +12,7 @@
 RootModule = 'OrchestratorCOM.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.0.271.0'
+ModuleVersion = '1.0.276.0'
 
 # ID used to uniquely identify this module
 GUID = '92d43bb2-7f30-4c25-8e2c-531c569a14c3'
