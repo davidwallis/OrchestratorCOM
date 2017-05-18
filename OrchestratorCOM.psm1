@@ -45,6 +45,18 @@ $DataTypeDelimitersRoot.Encrypted = '\`d.T.~Ec/'
 $DataTypeDelimitersRoot.Encrypted1 = '\`d.T.~De/'
 $DataTypeDelimitersRoot.Variable = '\`d.T.~Vb/'
 
+<#
+SELECT * FROM [Orchestrator].[Microsoft.SystemCenter.Orchestrator.Runtime.Internal].[JobStatus]
+
+Id   Name
+0    Pending
+1    Running
+2    Failed
+3    Canceled
+4    Completed
+
+#>
+
 Function Connect-OrchestratorComInterface {
     <#
         .SYNOPSIS
@@ -4354,6 +4366,238 @@ Function Import-OrchestratorVariables {
     }
 }
 
+Function Get-OrchestratorLogHistoryObjects {
+    <#
+    .SYNOPSIS
+        Get-OrchestratorLogHistoryObjects
+
+    .DESCRIPTION
+        Long description
+
+    .PARAMETER PolicyId
+        The Policy Id
+
+    .PARAMETER InstanceId
+        The Instance Id
+
+    .EXAMPLE
+        PS C:\> Get-OrchestratorLogHistoryObjects -PolicyId "e26e9432-c49b-4853-8e12-e4a3bfc8d726" -InstanceId "c3a1f8d0-f09f-4458-af56-0e83300fbfe7"
+
+    .NOTES
+        The Policy ID and Instance ID can be obtained within a runbook by using the following SQL query USE Orchestrator (Ensure you subscribe to the correct variables where noted):
+
+        SELECT TOP 1
+             POLICYINSTANCES.JobID
+            ,POLICYINSTANCES.UniqueID AS InstanceID
+            ,POLICYINSTANCES.PolicyID
+        FROM POLICYINSTANCES
+        INNER JOIN ACTIONSERVERS ON POLICYINSTANCES.ActionServer = ACTIONSERVERS.UniqueID
+        WHERE (POLICYINSTANCES.ProcessID = <Activity process ID from "Initialize Data">) AND (ACTIONSERVERS.Computer = '<Runbook Server name from "Initialize Data">') AND (POLICYINSTANCES.Status IS NULL)
+
+        For support please see https://github.com/davidwallis3101/OrchestratorCOM/Issues
+
+    .LINK
+        http://cigpllsps1.cig.local/CIG%20Department%20Sites/PlatformBuild/default.aspx
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseSingularNouns", "", Scope="Function")]
+    [CmdletBinding()]
+    param(
+        [Parameter(Position=0, Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
+        [ValidateNotNullOrEmpty()]
+        [Alias("RunbookGUID")]
+        [Guid]$PolicyId,
+
+        [Parameter(Position=1, Mandatory=$true, ValueFromPipelineByPropertyName=$true)]
+        [Alias("UniqueId")]
+        [Guid]$InstanceID
+    )
+
+    begin {
+        if (!$script:connectionHandle) {
+            Write-Error "$($MyInvocation.MyCommand): Not Connected" -ErrorAction Stop
+        }
+
+        # $LogHistoryObjTypeData = @{
+        #     TypeName = 'Orchestrator.LogHistoryObj'
+        #     DefaultDisplayPropertySet = 'ObjectName','ObjectStatus'
+        # }
+        # Update-TypeData @LogHistoryObjTypeData
+    }
+
+    process {
+        $oLogData = New-Object object
+        $logData = New-Object Runtime.InteropServices.VariantWrapper($oLogData)
+
+        #  void GetLogHistoryObjects (int, bstrPolicyID, bstrInstanceID, pvarLogData)
+        $oismgr.GetLogHistoryObjects($script:connectionHandle, $PolicyId.ToString("B"), $InstanceID.ToString("B"), [ref]$logData)
+
+        # Get the log entrys with XPath
+        $entryNodes = ([xml]$LogData).SelectNodes("//Entry")
+        foreach ($logEntry in $entryNodes) {
+            # return a psObject with the log details
+            New-Object PSObject -property ([Ordered]@{
+                PSTypeName = 'OrchestratorCOM.LogHistoryObj';
+                'InstanceNumber' = $logEntry.InstanceNumber;
+                'ObjectName' = $logEntry.ObjectName;
+                'ObjectStatus' = $logEntry.ObjectStatus;
+                'InstanceID' = $logEntry.InstanceID;
+                'ObjectID' = $logEntry.ObjectID;
+                'ObjectType' = $logEntry.ObjectType;
+            })
+        }
+    }
+
+    end {
+    }
+}
+
+Function Get-OrchestratorLogHistory {
+    <#
+    .SYNOPSIS
+        Get-OrchestratorLogHistory
+
+    .DESCRIPTION
+        Get the log history for a policy / runbook
+
+    .PARAMETER PolicyId
+        The Policy Id
+
+    .PARAMETER Flags
+        The Unknown Flags (but 1 seems to work.. )
+
+    .EXAMPLE
+        PS C:\> Get-OrchestratorLogHistory -PolicyId "e26e9432-c49b-4853-8e12-e4a3bfc8d726" -Flags "Unknown"
+
+    .NOTES
+        For support please see https://github.com/davidwallis3101/OrchestratorCOM/Issues
+
+    .LINK
+        http://cigpllsps1.cig.local/CIG%20Department%20Sites/PlatformBuild/default.aspx
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Position=0, Mandatory=$true, ValueFromPipeLine=$true)]
+        [ValidateNotNullOrEmpty()]
+        [Alias("RunbookGUID")]
+        [Guid]$PolicyId,
+
+        # [Parameter(Mandatory=$true)]
+        $Flags = 1
+    )
+
+    #TODO - Untested / Unverified 18/05/2017
+    begin {
+        if (!$script:connectionHandle) {
+            Write-Error "$($MyInvocation.MyCommand): Not Connected" -ErrorAction Stop
+        }
+
+        # $LogHistoryTypeData = @{
+        #     TypeName = 'Orchestrator.LogHistory'
+        #     DefaultDisplayPropertySet = 'Status','TimeStarted', 'TimeEnded'
+        # }
+        # Update-TypeData @LogHistoryTypeData
+    }
+
+    process {
+        $oLogHistory = New-Object object
+        $logHistory = New-Object Runtime.InteropServices.VariantWrapper($oLogHistory)
+
+        #void GetLogHistory (int, bstrPolicyID, lFlags, pvarLogHistory)
+        $oismgr.GetLogHistory($script:connectionHandle, $PolicyId.ToString("B"), $Flags, [ref]$logHistory)
+
+        # Get the log entrys with XPath and return a PSObject
+        $entryNodes = ([xml]$logHistory).SelectNodes("//Entry")
+        foreach ($logEntry in $entryNodes) {
+            # return a psObject with the log details
+            New-Object PSObject -property ([Ordered]@{
+                PSTypeName = 'OrchestratorCOM.LogHistory';
+                'Status' = $logEntry.Status;
+                <# The timestamp is the number of 100-nanoseconds intervals (1 nanosecond = one billionth of a second) since Jan 1, 1601 UTC. #>
+                'TimeStarted' = [DateTime]::FromFileTime($logEntry.TimeStarted);
+                'TimeEnded' = [DateTime]::FromFileTime($logEntry.TimeEnded);
+                'UniqueID' = $logEntry.UniqueID;
+                'PolicyID' = $logEntry.PolicyID;
+            })
+        }
+    }
+
+    end {
+    }
+}
+
+Function Get-OrchestratorLogHistoryObjectDetails {
+    <#
+    .SYNOPSIS
+        Get-OrchestratorLogHistoryObjectDetails
+
+    .DESCRIPTION
+        Gets the Log History for individual objects
+
+    .PARAMETER InstanceId
+        The Instance Id
+
+    .PARAMETER ObjectID
+        The Policy Id
+
+    .PARAMETER InstanceNumber
+        The Instance Number
+
+    .EXAMPLE
+        PS C:\> Get-OrchestratorLogHistoryObjectDetails -PolicyId "e26e9432-c49b-4853-8e12-e4a3bfc8d726" -InstanceId "c3a1f8d0-f09f-4458-af56-0e83300fbfe7"
+
+    .NOTES
+        For support please see https://github.com/davidwallis3101/OrchestratorCOM/Issues
+
+    .LINK
+        http://cigpllsps1.cig.local/CIG%20Department%20Sites/PlatformBuild/default.aspx
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseSingularNouns", "", Scope="Function")]
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [Guid]$InstanceID,
+
+        [Parameter(Mandatory=$true)]
+        [Guid]$ObjectID,
+
+        [Parameter(Mandatory=$true)]
+        [int]$InstanceNumber
+
+    )
+
+    begin {
+        if (!$script:connectionHandle) {
+            Write-Error "$($MyInvocation.MyCommand): Not Connected" -ErrorAction Stop
+        }
+    }
+
+    process {
+        $oLogData = New-Object object
+        $logData = New-Object Runtime.InteropServices.VariantWrapper($oLogData)
+
+        # void GetLogHistoryObjectDetails (int, bstrInstanceID, bstrObjectID, bstrInstanceNumber, pvarLogData)
+        $oismgr.GetLogHistoryObjects($script:connectionHandle, $PolicyId.ToString("B"), $InstanceID.ToString("B"), [ref]$logData)
+
+        # Get the log entrys with XPath
+        $entryNodes = ([xml]$LogData).SelectNodes("//Entry")
+        foreach ($logEntry in $entryNodes) {
+            # return a psObject with the log details
+            New-Object PSObject -property ([Ordered]@{
+                'InstanceNumber' = $logEntry.InstanceNumber;
+                'ObjectName' = $logEntry.ObjectName;
+                'ObjectStatus' = $logEntry.ObjectStatus;
+                'InstanceID' = $logEntry.InstanceID;
+                'ObjectID' = $logEntry.ObjectID;
+                'ObjectType' = $logEntry.ObjectType;
+
+            })
+        }
+    }
+
+    end {
+    }
+}
+
 
 
 ###################################################################################################################
@@ -4375,9 +4619,9 @@ Function Import-OrchestratorVariables {
     LoadPolicy                              void LoadPolicy (int, bstrPolicyID, pvarPolicyData)
 
     GetAuditHistory                         void GetAuditHistory (int, bstrObjectID, bstrTransactionID, bstrCommand, pvarData)
-    GetLogHistory                           void GetLogHistory (int, bstrPolicyID, lFlags, pvarLogData)
-    GetLogHistoryObjectDetails              void GetLogHistoryObjectDetails (int, bstrInstanceID, bstrObjectID, bstrInstanceNumber, pvarLogData)
-    GetLogHistoryObjects                    void GetLogHistoryObjects (int, bstrPolicyID, bstrInstanceID, pvarLogData)
+
+
+
     GetLogObjectDetails                     void GetLogObjectDetails (int, bstrObjectID, bstrInstanceID, bstrInstanceNumber, pvarObjectInformation)
     GetEventDetails                         void GetEventDetails (bstrUniqueID, pvarEvents)
 

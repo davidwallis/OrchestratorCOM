@@ -10,6 +10,7 @@ Sources/References:
 * https://blogs.technet.microsoft.com/orchestrator/2012/05/24/more-fun-with-com-importing-integration-packs-via-powershell/
 * https://scorch.codeplex.com/SourceControl/latest
 * https://social.technet.microsoft.com/wiki/contents/articles/14631.system-center-orchestrator-security.aspx
+* https://blogs.technet.microsoft.com/orchestrator/2012/05/30/sql-sequel-more-useful-orchestrator-database-queries/
 
 Requires:
 
